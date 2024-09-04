@@ -1,0 +1,137 @@
+---
+title: "Anova Assignment"
+author: "Kai Hendershot"
+date: "`r Sys.Date()`"
+output: html_document
+---
+```{r include = FALSE} 
+library(readr)
+HomeData <- read_csv("C:/Users/kaise/Downloads/HomeData.csv")
+library(psych)
+library(generics)
+library(ggforce)
+library(ggformula)
+library(car)
+library(magrittr)
+```
+Investigate the hypothesis that the mean price for homes is the same as for 
+conditions 3,4 and 5 and for grades 6,7,8 and 9
+
+Make sure condition and grade are factors
+```{r}
+HomeData$grade <- as.factor(HomeData$grade)
+HomeData$condition <- as.factor(HomeData$condition)
+```
+
+Create a table to see how balanced the data is 
+```{r}
+table(HomeData$condition, HomeData$grade)
+```
+
+Create a box plot and violin plot for the grade then condition
+```{r}
+gf_boxplot(price~grade, data = 
+             HomeData[HomeData$grade%in% c(6,7,8,9) &
+                        HomeData$condition %in% c(3,4,5),], fill = ~condition) %>%
+  gf_violin(price~grade, data = 
+              HomeData[HomeData$grade%in%c(6,7,8,9) &
+                         HomeData$condition%in%c(3,4,5),], fill = ~condition, alpha = .3)%>%
+  gf_labs(title = "Overlapping Violin and Box Plot\nfor price, grade, and condition")
+```
+
+Create a box plot and violin plot for condition then grade
+```{r}
+gf_boxplot(price~condition, data = 
+             HomeData[HomeData$condition%in%c(3,4,5)&
+                        HomeData$grade%in%c(6,7,8,9),], fill = ~grade) %>%
+  gf_violin(price~condition, data = 
+              HomeData[HomeData$condition%in%c(3,4,5)&
+                         HomeData$grade%in%c(6,7,8,9),], fill = ~grade, alpha = .3)%>%
+  gf_labs(title = "Overlapping Violin and Box Plot\nfor price, grade, and condition")
+```
+
+Use aov on the unbalanced data
+```{r}
+aov.unb <- aov(price~grade*condition, data = HomeData[HomeData$grade%in%c(6,7,8,9)&
+                                             HomeData$condition%in%c(3,4,5),])
+
+summary(aov.unb)
+```
+After running the test on the unbalanced data we are able to see that all variables
+and their comparison p values are of high significance because they are all so small 
+they all have some sort of effect on the price of the house.
+
+Initialize storage for new.df
+```{r}
+new.df <- data.frame(price=integer(), condition=factor(), grade=factor())
+```
+
+Create the for loop to create and save the data into new.df
+```{r}
+for (i in c(6,7,8,9)) {
+  for (j in c(3,4,5)) {
+    new.df <- rbind(new.df, HomeData[sample(which(HomeData$grade==i &
+                                                        HomeData$condition==j),50), c("price", "grade", "condition")])
+  }
+}
+```
+
+Check to see if it worked and how it looks
+```{r}
+str(new.df)
+table(new.df$grade,new.df$condition)
+```
+
+Too many zeros so lets focus only on what we need and get rid of those zeros
+```{r}
+new.df$grade <- droplevels(new.df$grade)
+new.df$condition <- droplevels(new.df$condition)
+table(new.df$grade, new.df$condition)
+```
+
+Run aov test on the new.df as well as Tukey
+```{r}
+aov.pgc <- aov(price~grade*condition, data = new.df)
+summary(aov.pgc)
+TukeyHSD(aov.pgc)
+```
+After running the test on the unbalanced data we are able to see that all variables
+and their comparison p values are of high significance because they are all so small 
+they all have some sort of effect on the price of the house.
+
+Create a box plot and violin plot for the grade then condition with new.df
+```{r}
+gf_boxplot(price~grade, data = 
+             new.df[new.df$grade%in% c(6,7,8,9) &
+                        new.df$condition %in% c(3,4,5),], fill = ~condition) %>%
+  gf_violin(price~grade, data = 
+              new.df[new.df$grade%in%c(6,7,8,9) &
+                         new.df$condition%in%c(3,4,5),], fill = ~condition, alpha = .3)%>%
+  gf_labs(title = "Overlapping Violin and Box Plot\nfor price, grade, and condition")
+```
+
+Create a box plot and violin plot for condition then grade with new.df
+```{r}
+gf_boxplot(price~condition, data = 
+             new.df[new.df$condition%in%c(3,4,5)&
+                        new.df$grade%in%c(6,7,8,9),], fill = ~grade) %>%
+  gf_violin(price~condition, data = 
+              new.df[new.df$condition%in%c(3,4,5)&
+                         new.df$grade%in%c(6,7,8,9),], fill = ~grade, alpha = .3)%>%
+  gf_labs(title = "Overlapping Violin and Box Plot\nfor price, grade, and condition")
+```
+
+
+Create a model with car package and using ANOVA
+First I had to create a linear model with the variables, then use ANOVA to run 
+the test on the model I created, and lastly I printed the results.
+```{r}
+car_lm <- lm(price~grade*condition, data = HomeData)
+anova_car <- anova(car_lm)
+print(anova_car)
+```
+After running the test on the unbalanced data we are able to see that all variables
+and their comparison p values are of high significance because they are all so smaller 
+they all have some sort of effect on the price of the house.
+
+
